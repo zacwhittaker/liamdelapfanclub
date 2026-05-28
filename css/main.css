@@ -181,50 +181,44 @@ a {
   align-items: center;
 }
 
-.site-auth__login {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
+.site-auth__link {
+  display: block;
+  line-height: 0;
+  flex-shrink: 0;
   border-radius: 50%;
-  border: 1px solid var(--border);
-  background: #0f141a;
-  box-shadow: 0 0 14px rgba(88, 101, 242, 0.25);
-  transition: box-shadow 0.2s var(--ease), transform 0.2s var(--ease);
+  transition: transform 0.2s var(--ease);
 }
 
-.site-auth__login:hover {
+.site-auth__link:hover {
   transform: scale(1.05);
-  box-shadow: 0 0 20px rgba(88, 101, 242, 0.45);
 }
 
-.site-auth__login img {
-  width: 22px;
-  height: 22px;
-  object-fit: contain;
-}
-
-.site-auth__avatar {
+.site-auth__pfp {
   display: block;
   width: 40px;
   height: 40px;
   border-radius: 50%;
   overflow: hidden;
-  border: 1px solid rgba(59, 130, 246, 0.5);
-  box-shadow: 0 0 16px rgba(31, 73, 255, 0.45);
-  transition: box-shadow 0.2s var(--ease), transform 0.2s var(--ease);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 0 12px rgba(31, 73, 255, 0.35),
+    0 0 24px rgba(59, 130, 246, 0.15);
+  background: #0f141a;
 }
 
-.site-auth__avatar:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0 24px rgba(31, 73, 255, 0.6);
+.site-auth__link--active .site-auth__pfp {
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow:
+    0 0 16px rgba(31, 73, 255, 0.5),
+    0 0 32px rgba(59, 130, 246, 0.25);
 }
 
-.site-auth__avatar img {
+.site-auth__pfp img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
+  display: block;
 }
 
 .site-auth__initial {

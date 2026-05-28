@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="LDFC server rules — Liam Delap Fan Club">
   <title>LDFC Rules | Liam Delap Fan Club</title>
+  <script>
+    (function () {
+      var parts = location.pathname.split('/').filter(Boolean);
+      var href = '/';
+      if (parts.length > 0 && parts[0].indexOf('.') === -1) {
+        href = '/' + parts[0] + '/';
+      }
+      var base = document.createElement('base');
+      base.href = href;
+      document.head.appendChild(base);
+    })();
+  </script>
   <link rel="icon" href="assets/Logo1.png" type="image/png">
   <link rel="stylesheet" href="css/main.css">
 </head>
@@ -19,7 +31,10 @@
         </span>
         <span class="site-logo__name">Liam Delap Fan Club</span>
       </a>
-      <a href="https://discord.gg/fKDjfdqSQk" class="header-cta" target="_blank" rel="noopener noreferrer">Join Discord</a>
+      <div class="site-header__end">
+        <div class="site-auth" id="site-auth" aria-live="polite"></div>
+        <a href="https://discord.gg/fKDjfdqSQk" class="header-cta" target="_blank" rel="noopener noreferrer">Join Discord</a>
+      </div>
     </div>
   </header>
 
@@ -83,6 +98,7 @@
           <p class="site-footer__heading">Explore</p>
           <ul class="site-footer__links">
             <li><a href="index.html">Home</a></li>
+            <li><a href="profile.html">Profile</a></li>
             <li><a href="index.html#apply-heading">Apply to join</a></li>
           </ul>
         </div>
@@ -108,6 +124,9 @@
     </div>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

@@ -172,13 +172,9 @@ a {
 .site-header__end {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
-}
-
-.site-auth {
-  display: flex;
-  align-items: center;
+  margin-left: auto;
 }
 
 .site-auth__link {
@@ -195,8 +191,8 @@ a {
 
 .site-auth__pfp {
   display: block;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -207,10 +203,10 @@ a {
 }
 
 .site-auth__link--active .site-auth__pfp {
-  border-color: rgba(59, 130, 246, 0.5);
+  border-color: rgba(59, 130, 246, 0.55);
   box-shadow:
-    0 0 16px rgba(31, 73, 255, 0.5),
-    0 0 32px rgba(59, 130, 246, 0.25);
+    0 0 16px rgba(31, 73, 255, 0.55),
+    0 0 32px rgba(59, 130, 246, 0.28);
 }
 
 .site-auth__pfp img {

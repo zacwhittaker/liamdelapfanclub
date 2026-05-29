@@ -4,6 +4,12 @@
   const cfg = window.LDFC_CONFIG;
   if (!cfg || !window.supabase) return;
 
+  function asset(path) {
+    if (window.LDFC_ASSET) return window.LDFC_ASSET(path);
+    var root = window.LDFC_SITE_ROOT || '/';
+    return root + String(path).replace(/^\//, '');
+  }
+
   const supabase = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
     auth: {
       detectSessionInUrl: true,
@@ -131,7 +137,7 @@
     link.classList.remove('site-auth__link--active');
     link.setAttribute('aria-label', 'Profile');
     link.removeAttribute('title');
-    pfp.innerHTML = '<img id="site-auth-img" src="assets/ProfileIcon.png" alt="">';
+    pfp.innerHTML = '<img id="site-auth-img" src="' + asset('assets/ProfileIcon.png') + '" alt="">';
   }
 
   function escapeHtml(str) {
@@ -152,7 +158,7 @@
     await supabase.auth.signInWithOAuth({
       provider: 'discord',
       options: {
-        redirectTo: cfg.siteUrl + '/profile.html',
+        redirectTo: cfg.siteUrl + '/profile/',
         scopes: 'identify guilds',
       },
     });
@@ -165,7 +171,7 @@
     } catch (e) {
       /* ignore */
     }
-    window.location.href = 'index.html';
+    window.location.href = window.LDFC_SITE_ROOT || cfg.siteUrl + '/';
   }
 
   function renderProfile(state) {
@@ -184,7 +190,7 @@
         '<button type="button" class="apply-btn profile-login-btn" id="profile-login-btn">' +
         '<span class="apply-btn__label">Login with Discord</span>' +
         '<span class="apply-btn__icon-wrap" aria-hidden="true">' +
-        '<img src="assets/DiscordLogo.png" alt="" class="apply-btn__icon" width="34" height="34">' +
+        '<img src="' + asset('assets/DiscordLogo.png') + '" alt="" class="apply-btn__icon" width="34" height="34">' +
         '</span></button></div>';
       document.getElementById('profile-login-btn')?.addEventListener('click', loginWithDiscord);
       return;

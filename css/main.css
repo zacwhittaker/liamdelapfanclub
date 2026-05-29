@@ -745,6 +745,31 @@ a {
   margin-bottom: 24px;
 }
 
+.profile-card__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-switch-account {
+  padding: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s var(--ease);
+}
+
+.profile-switch-account:hover {
+  color: var(--text);
+}
+
 .profile-card__hero {
   text-align: center;
   margin-bottom: 28px;

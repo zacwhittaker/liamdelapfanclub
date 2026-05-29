@@ -28,21 +28,43 @@
   }
 
   const guildId = String(cfg.discordGuildId);
+  const VERIFIED_USER_KEY = 'ldfc_verified_user';
+  let refreshInFlight = null;
+  let confirmedMemberId = null;
 
-  function memberCacheKey(userId) {
-    return 'ldfc_member_' + userId + '_' + guildId;
+  function supabaseStorageKey() {
+    try {
+      const ref = new URL(cfg.supabaseUrl).hostname.split('.')[0];
+      return 'sb-' + ref + '-auth-token';
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function clearClientAuthState() {
+    confirmedMemberId = null;
+    sessionStorage.removeItem(VERIFIED_USER_KEY);
+
+    var i;
+    for (i = sessionStorage.length - 1; i >= 0; i--) {
+      var sk = sessionStorage.key(i);
+      if (sk && sk.indexOf('ldfc_') === 0) sessionStorage.removeItem(sk);
+    }
+    for (i = localStorage.length - 1; i >= 0; i--) {
+      var lk = localStorage.key(i);
+      if (lk && lk.indexOf('ldfc_member_') === 0) localStorage.removeItem(lk);
+    }
+
+    var authKey = supabaseStorageKey();
+    if (authKey) localStorage.removeItem(authKey);
   }
 
   function isMemberCached(userId) {
-    return localStorage.getItem(memberCacheKey(userId)) === '1';
+    return sessionStorage.getItem(VERIFIED_USER_KEY) === userId;
   }
 
   function setMemberCached(userId) {
-    localStorage.setItem(memberCacheKey(userId), '1');
-  }
-
-  function clearMemberCached(userId) {
-    localStorage.removeItem(memberCacheKey(userId));
+    sessionStorage.setItem(VERIFIED_USER_KEY, userId);
   }
 
   /** @returns {Promise<boolean|null>} true = in guild, false = not in guild, null = could not verify */
@@ -67,22 +89,22 @@
     if (!session?.user) return 'pending';
 
     const userId = session.user.id;
+
+    if (session.provider_token) {
+      const inGuild = await isInGuild(session.provider_token);
+      if (inGuild === true) {
+        setMemberCached(userId);
+        return 'member';
+      }
+      if (inGuild === false) {
+        clearClientAuthState();
+        await supabase.auth.signOut({ scope: 'global' });
+        return 'denied';
+      }
+    }
+
     if (isMemberCached(userId)) return 'member';
-
-    if (!session.provider_token) return 'pending';
-
-    const inGuild = await isInGuild(session.provider_token);
-    if (inGuild === true) {
-      setMemberCached(userId);
-      return 'member';
-    }
-    if (inGuild === false) {
-      clearMemberCached(userId);
-      await supabase.auth.signOut();
-      return 'denied';
-    }
-
-    return isMemberCached(userId) ? 'member' : 'pending';
+    return 'pending';
   }
 
   function renderHeader(session, user) {
@@ -121,6 +143,12 @@
   }
 
   async function loginWithDiscord() {
+    clearClientAuthState();
+    try {
+      await supabase.auth.signOut({ scope: 'global' });
+    } catch (e) {
+      /* ignore — may already be signed out */
+    }
     await supabase.auth.signInWithOAuth({
       provider: 'discord',
       options: {
@@ -131,11 +159,12 @@
   }
 
   async function logout() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session?.user) clearMemberCached(session.user.id);
-    await supabase.auth.signOut();
+    clearClientAuthState();
+    try {
+      await supabase.auth.signOut({ scope: 'global' });
+    } catch (e) {
+      /* ignore */
+    }
     window.location.href = 'index.html';
   }
 
@@ -166,10 +195,13 @@
         '<div class="profile-card profile-card--center profile-card--error">' +
         '<h2 class="profile-card__title">Not in the server</h2>' +
         '<p class="profile-card__lead">You need to be a member of the Liam Delap Fan Club Discord to sign in here.</p>' +
+        '<div class="profile-card__actions">' +
         '<a href="' +
         escapeHtml(cfg.discordInvite) +
         '" class="footer-cta" target="_blank" rel="noopener noreferrer">Join Discord</a>' +
-        '</div>';
+        '<button type="button" class="profile-switch-account" id="profile-switch-account-btn">Sign in with a different account</button>' +
+        '</div></div>';
+      document.getElementById('profile-switch-account-btn')?.addEventListener('click', loginWithDiscord);
       return;
     }
 
@@ -204,9 +236,6 @@
       document.getElementById('profile-logout-btn')?.addEventListener('click', logout);
     }
   }
-
-  let refreshInFlight = null;
-  let confirmedMemberId = null;
 
   async function refreshUI() {
     if (refreshInFlight) return refreshInFlight;

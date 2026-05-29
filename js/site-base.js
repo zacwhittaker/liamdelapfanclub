@@ -1,4 +1,4 @@
-/* Site root <base> for assets + clean URLs (no .html in the address bar). */
+/* Site root helpers + clean URLs (no .html in the address bar). */
 (function () {
   'use strict';
 
@@ -19,10 +19,6 @@
   } else if (pages[parts[parts.length - 1]]) {
     href = '/' + parts[0] + '/';
   }
-
-  var base = document.createElement('base');
-  base.href = href;
-  document.head.insertBefore(base, document.head.firstChild);
 
   window.LDFC_SITE_ROOT = href;
 

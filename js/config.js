@@ -5,4 +5,5 @@ window.LDFC_CONFIG = {
   siteUrl: 'https://www.ldfc.co.uk',
   discordGuildId: '1464771608781783191',
   discordInvite: 'https://discord.gg/fKDjfdqSQk',
+  profileFunction: 'get-profile',
 };

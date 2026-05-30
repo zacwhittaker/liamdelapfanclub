@@ -36,6 +36,7 @@
   const guildId = String(cfg.discordGuildId);
   const VERIFIED_USER_KEY = 'ldfc_verified_user';
   let refreshInFlight = null;
+  let refreshQueued = false;
   let confirmedMemberId = null;
 
   function supabaseStorageKey() {
@@ -49,7 +50,7 @@
 
   function clearClientAuthState() {
     confirmedMemberId = null;
-    sessionStorage.removeItem(VERIFIED_USER_KEY);
+    localStorage.removeItem(VERIFIED_USER_KEY);
 
     var i;
     for (i = sessionStorage.length - 1; i >= 0; i--) {
@@ -66,11 +67,11 @@
   }
 
   function isMemberCached(userId) {
-    return sessionStorage.getItem(VERIFIED_USER_KEY) === userId;
+    return localStorage.getItem(VERIFIED_USER_KEY) === userId;
   }
 
   function setMemberCached(userId) {
-    sessionStorage.setItem(VERIFIED_USER_KEY, userId);
+    localStorage.setItem(VERIFIED_USER_KEY, userId);
   }
 
   /** @returns {Promise<boolean|null>} true = in guild, false = not in guild, null = could not verify */
@@ -439,48 +440,61 @@
     }
   }
 
+  async function runRefreshUI() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      confirmedMemberId = null;
+      renderHeader(null, null);
+      if (document.getElementById('profile-root')) {
+        renderProfile({ status: 'guest' });
+      }
+      return;
+    }
+
+    const status = await verifyMember(session);
+
+    if (status === 'member') {
+      confirmedMemberId = session.user.id;
+      renderHeader(session, session.user);
+      renderProfile({ status: 'member', user: session.user });
+      return;
+    }
+
+    if (status === 'denied') {
+      confirmedMemberId = null;
+      renderHeader(null, null);
+      renderProfile({ status: 'denied' });
+      return;
+    }
+
+    if (confirmedMemberId === session.user.id) {
+      renderHeader(session, session.user);
+      renderProfile({ status: 'member', user: session.user });
+      return;
+    }
+
+    /* Session exists but membership can't be verified — show login again */
+    confirmedMemberId = null;
+    renderHeader(null, null);
+    if (document.getElementById('profile-root')) {
+      renderProfile({ status: 'guest' });
+    }
+  }
+
   async function refreshUI() {
-    if (refreshInFlight) return refreshInFlight;
+    if (refreshInFlight) {
+      refreshQueued = true;
+      return refreshInFlight;
+    }
 
     refreshInFlight = (async function () {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        confirmedMemberId = null;
-        renderHeader(null, null);
-        if (document.getElementById('profile-root')) {
-          renderProfile({ status: 'guest' });
-        }
-        return;
-      }
-
-      const status = await verifyMember(session);
-
-      if (status === 'member') {
-        confirmedMemberId = session.user.id;
-        renderHeader(session, session.user);
-        renderProfile({ status: 'member', user: session.user });
-        return;
-      }
-
-      if (status === 'denied') {
-        confirmedMemberId = null;
-        renderHeader(null, null);
-        renderProfile({ status: 'denied' });
-        return;
-      }
-
-      if (confirmedMemberId === session.user.id) {
-        renderHeader(session, session.user);
-        renderProfile({ status: 'member', user: session.user });
-        return;
-      }
-
-      if (document.getElementById('profile-root')) {
-        renderProfile({ status: 'loading' });
-      }
+      do {
+        refreshQueued = false;
+        await runRefreshUI();
+      } while (refreshQueued);
     })().finally(function () {
       refreshInFlight = null;
     });
@@ -492,7 +506,6 @@
     if (document.getElementById('profile-root')) {
       renderProfile({ status: 'loading' });
     }
-    refreshUI();
 
     supabase.auth.onAuthStateChange(function () {
       refreshUI();

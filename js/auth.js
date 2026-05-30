@@ -441,46 +441,53 @@
   }
 
   async function runRefreshUI() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    if (!session) {
+      if (!session) {
+        confirmedMemberId = null;
+        renderHeader(null, null);
+        if (document.getElementById('profile-root')) {
+          renderProfile({ status: 'guest' });
+        }
+        return;
+      }
+
+      const status = await verifyMember(session);
+
+      if (status === 'member') {
+        confirmedMemberId = session.user.id;
+        renderHeader(session, session.user);
+        renderProfile({ status: 'member', user: session.user });
+        return;
+      }
+
+      if (status === 'denied') {
+        confirmedMemberId = null;
+        renderHeader(null, null);
+        renderProfile({ status: 'denied' });
+        return;
+      }
+
+      if (confirmedMemberId === session.user.id) {
+        renderHeader(session, session.user);
+        renderProfile({ status: 'member', user: session.user });
+        return;
+      }
+
       confirmedMemberId = null;
       renderHeader(null, null);
       if (document.getElementById('profile-root')) {
         renderProfile({ status: 'guest' });
       }
-      return;
-    }
-
-    const status = await verifyMember(session);
-
-    if (status === 'member') {
-      confirmedMemberId = session.user.id;
-      renderHeader(session, session.user);
-      renderProfile({ status: 'member', user: session.user });
-      return;
-    }
-
-    if (status === 'denied') {
+    } catch (e) {
       confirmedMemberId = null;
       renderHeader(null, null);
-      renderProfile({ status: 'denied' });
-      return;
-    }
-
-    if (confirmedMemberId === session.user.id) {
-      renderHeader(session, session.user);
-      renderProfile({ status: 'member', user: session.user });
-      return;
-    }
-
-    /* Session exists but membership can't be verified — show login again */
-    confirmedMemberId = null;
-    renderHeader(null, null);
-    if (document.getElementById('profile-root')) {
-      renderProfile({ status: 'guest' });
+      if (document.getElementById('profile-root')) {
+        renderProfile({ status: 'guest' });
+      }
     }
   }
 
@@ -502,7 +509,12 @@
     return refreshInFlight;
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
+  function isProfileStillLoading() {
+    var root = document.getElementById('profile-root');
+    return root && root.querySelector('.profile-status');
+  }
+
+  function bootAuth() {
     if (document.getElementById('profile-root')) {
       renderProfile({ status: 'loading' });
     }
@@ -510,7 +522,28 @@
     supabase.auth.onAuthStateChange(function () {
       refreshUI();
     });
-  });
+
+    refreshUI();
+
+    setTimeout(function () {
+      if (isProfileStillLoading()) {
+        refreshUI();
+      }
+    }, 2500);
+
+    setTimeout(function () {
+      if (isProfileStillLoading()) {
+        renderHeader(null, null);
+        renderProfile({ status: 'guest' });
+      }
+    }, 6000);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootAuth);
+  } else {
+    bootAuth();
+  }
 
   window.LDFC_AUTH = {
     login: loginWithDiscord,

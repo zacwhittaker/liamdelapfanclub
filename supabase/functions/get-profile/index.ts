@@ -1,9 +1,22 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient, type User } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+function getDiscordId(user: User): string {
+  const meta = user.user_metadata ?? {};
+  if (meta.provider_id) return String(meta.provider_id);
+  if (meta.sub) return String(meta.sub);
+
+  const discord = user.identities?.find(function (i) {
+    return i.provider === 'discord';
+  });
+  if (discord?.id) return String(discord.id);
+
+  return '';
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -12,27 +25,26 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return json({ error: 'Missing authorization' }, 401);
     }
 
+    const jwt = authHeader.replace('Bearer ', '').trim();
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } },
     );
 
     const {
       data: { user },
       error: userError,
-    } = await supabase.auth.getUser();
+    } = await supabase.auth.getUser(jwt);
 
     if (userError || !user) {
-      return json({ error: 'Unauthorized' }, 401);
+      return json({ error: 'Unauthorized', detail: userError?.message }, 401);
     }
 
-    const meta = user.user_metadata ?? {};
-    const discordId = String(meta.provider_id ?? meta.sub ?? '');
+    const discordId = getDiscordId(user);
     if (!discordId) {
       return json({ error: 'Discord user id not found on session' }, 400);
     }
@@ -54,7 +66,7 @@ Deno.serve(async (req) => {
       '/profile';
 
     const botRes = await fetch(profileUrl, {
-      headers: { Authorization: 'Bearer ' + botToken },
+      headers: { Authorization: 'Bearer ' + botToken.trim() },
     });
 
     if (!botRes.ok) {
@@ -64,6 +76,7 @@ Deno.serve(async (req) => {
           error: 'Bot profile API request failed',
           status: botRes.status,
           detail: detail.slice(0, 200),
+          discord_id: discordId,
         },
         botRes.status === 404 ? 404 : 502,
       );

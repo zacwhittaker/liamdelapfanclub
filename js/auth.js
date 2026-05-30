@@ -185,31 +185,47 @@
       return { ok: false, reason: 'not_logged_in' };
     }
 
+    const url =
+      cfg.supabaseUrl.replace(/\/$/, '') + '/functions/v1/' + encodeURIComponent(fn);
+
     try {
-      const { data, error } = await supabase.functions.invoke(fn, {
-        headers: { Authorization: 'Bearer ' + session.access_token },
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + session.access_token,
+          apikey: cfg.supabaseAnonKey,
+          'Content-Type': 'application/json',
+        },
+        body: '{}',
       });
 
-      if (data && typeof data === 'object' && !data.error) {
+      var data = null;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        data = null;
+      }
+
+      if (res.ok && data && !data.error) {
         return { ok: true, data: data };
       }
 
-      if (data?.error) {
+      if (data && data.error) {
         return {
           ok: false,
           reason: data.error,
-          detail: data.detail,
-          status: data.status,
+          detail: data.detail || data.message,
+          status: data.status || res.status,
         };
       }
 
-      if (error) {
-        return { ok: false, reason: error.message || 'invoke_failed' };
-      }
-
-      return { ok: false, reason: 'empty_response' };
+      return {
+        ok: false,
+        reason: 'http_' + res.status,
+        detail: data ? JSON.stringify(data) : res.statusText,
+      };
     } catch (e) {
-      return { ok: false, reason: 'network' };
+      return { ok: false, reason: 'network', detail: String(e) };
     }
   }
 
@@ -230,6 +246,9 @@
     }
     if (result.detail) {
       return 'Could not load server stats: ' + result.detail;
+    }
+    if (result.reason && result.reason.indexOf('http_') === 0) {
+      return 'Profile service error (' + result.reason.replace('http_', '') + '). Check Supabase Edge Function deploy and secrets.';
     }
     return 'Could not load server stats right now. Try again in a moment.';
   }

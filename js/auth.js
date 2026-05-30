@@ -177,18 +177,61 @@
 
   async function fetchMemberStats() {
     const fn = cfg.profileFunction || 'get-profile';
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      return { ok: false, reason: 'not_logged_in' };
+    }
+
     try {
-      const { data, error } = await supabase.functions.invoke(fn);
+      const { data, error } = await supabase.functions.invoke(fn, {
+        headers: { Authorization: 'Bearer ' + session.access_token },
+      });
+
+      if (data && typeof data === 'object' && !data.error) {
+        return { ok: true, data: data };
+      }
+
+      if (data?.error) {
+        return {
+          ok: false,
+          reason: data.error,
+          detail: data.detail,
+          status: data.status,
+        };
+      }
+
       if (error) {
         return { ok: false, reason: error.message || 'invoke_failed' };
       }
-      if (data && data.error) {
-        return { ok: false, reason: data.error, status: data.status };
-      }
-      return { ok: true, data: data };
+
+      return { ok: false, reason: 'empty_response' };
     } catch (e) {
       return { ok: false, reason: 'network' };
     }
+  }
+
+  function statsErrorMessage(result) {
+    if (!result) return 'Could not load server stats right now.';
+    var reason = String(result.reason || '');
+    if (reason.indexOf('not configured') !== -1) {
+      return 'Server stats are not connected yet. Supabase secrets still need to be set.';
+    }
+    if (reason.indexOf('Unauthorized') !== -1 || reason.indexOf('Missing authorization') !== -1) {
+      return 'Session expired. Log out and sign in again to load stats.';
+    }
+    if (reason === 'Failed to send a request to the Edge Function' || reason.indexOf('FunctionsFetchError') !== -1) {
+      return 'Profile service not found. Redeploy the get-profile Edge Function in Supabase.';
+    }
+    if (result.status === 404) {
+      return 'No bot profile found for your Discord account yet. Try ,p in the server first.';
+    }
+    if (result.detail) {
+      return 'Could not load server stats: ' + result.detail;
+    }
+    return 'Could not load server stats right now. Try again in a moment.';
   }
 
   function formatJoined(iso) {
@@ -254,7 +297,7 @@
     );
   }
 
-  function buildMemberDashboard(user, stats, statsState) {
+  function buildMemberDashboard(user, stats, statsState, statsError) {
     const meta = user.user_metadata || {};
     const fallbackAvatar = discordAvatar(user);
     const fallbackName = displayName(user);
@@ -286,7 +329,9 @@
         '<p class="profile-dash__notice">Server stats are not connected yet. Your friend still needs to deploy the bot profile API — basic Discord info is shown below.</p>';
     } else if (statsState === 'error') {
       statsNotice =
-        '<p class="profile-dash__notice profile-dash__notice--warn">Could not load server stats right now. Try again in a moment.</p>';
+        '<p class="profile-dash__notice profile-dash__notice--warn">' +
+        escapeHtml(statsErrorMessage(statsError)) +
+        '</p>';
     }
 
     var nowPlaying = fm.now_playing || {};
@@ -384,16 +429,16 @@
     const root = document.getElementById('profile-root');
     if (!root) return;
 
-    root.innerHTML = buildMemberDashboard(user, null, 'loading');
+    root.innerHTML = buildMemberDashboard(user, null, 'loading', null);
     document.getElementById('profile-logout-btn')?.addEventListener('click', logout);
 
     const result = await fetchMemberStats();
     if (result.ok) {
-      root.innerHTML = buildMemberDashboard(user, result.data, 'ready');
+      root.innerHTML = buildMemberDashboard(user, result.data, 'ready', null);
     } else if (result.reason && String(result.reason).indexOf('not configured') !== -1) {
-      root.innerHTML = buildMemberDashboard(user, null, 'unavailable');
+      root.innerHTML = buildMemberDashboard(user, null, 'unavailable', result);
     } else {
-      root.innerHTML = buildMemberDashboard(user, null, 'error');
+      root.innerHTML = buildMemberDashboard(user, null, 'error', result);
     }
     document.getElementById('profile-logout-btn')?.addEventListener('click', logout);
   }

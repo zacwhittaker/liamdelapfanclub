@@ -345,7 +345,9 @@
         '<p class="profile-dash__notice">Loading server stats from the LDFC bot…</p>';
     } else if (statsState === 'unavailable') {
       statsNotice =
-        '<p class="profile-dash__notice">Server stats are not connected yet. Your friend still needs to deploy the bot profile API — basic Discord info is shown below.</p>';
+        '<p class="profile-dash__notice">' +
+        escapeHtml(statsErrorMessage(statsError)) +
+        '</p>';
     } else if (statsState === 'error') {
       statsNotice =
         '<p class="profile-dash__notice profile-dash__notice--warn">' +
